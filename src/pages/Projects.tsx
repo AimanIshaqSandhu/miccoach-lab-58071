@@ -91,8 +91,10 @@ const Projects = () => {
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredProjects.map((project, index) => {
-                const primaryImage = project.acf.project_images?.find(() => true);
-                const imageUrl = primaryImage?.url || primaryImage?.sizes?.large || primaryImage?.sizes?.full;
+                // Find first valid image from project_images
+                const validImages = project.acf.project_images?.filter(img => img.url && typeof img.url === 'string') || [];
+                const primaryImage = validImages[0];
+                const imageUrl = primaryImage?.url || primaryImage?.sizes?.large || primaryImage?.sizes?.full || null;
                 
                 return (
                   <Card 

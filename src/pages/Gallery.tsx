@@ -88,50 +88,58 @@ const Gallery = () => {
   return (
     <div className="min-h-screen py-20">
       {/* Hero Section */}
-      <section className="relative py-32 bg-gradient-to-b from-background to-dark-card">
-        <div className="container mx-auto px-4 text-center">
+      <section className="relative py-20 bg-gradient-to-br from-charcoal via-charcoal-light to-charcoal overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        </div>
+        
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <div className="inline-block px-4 py-2 bg-primary/10 border border-primary/20 rounded-full mb-6">
+            <span className="text-primary text-sm font-medium">OUR WORK</span>
+          </div>
           <h1 className="text-5xl md:text-7xl font-bold mb-6 animate-fade-in">
-            Our Gallery
+            Our <span className="text-primary">Gallery</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto animate-fade-in">
-            Explore our work, team, and craftsmanship
+            Explore our craftsmanship through stunning visuals of our team at work and completed projects
           </p>
         </div>
       </section>
 
       {/* Category and Media Type Filters */}
-      <section className="py-12 bg-dark-card">
+      <section className="py-12 bg-dark-card border-y border-border">
         <div className="container mx-auto px-4">
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3">Category</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-4 text-center">Filter by Category</h3>
               <div className="flex flex-wrap justify-center gap-3">
                 {categories.map((category) => (
                   <button
                     key={category}
                     onClick={() => setSelectedCategory(category)}
-                    className={`px-6 py-2 rounded-lg font-medium transition-all ${
+                    className={`px-6 py-2.5 rounded-full font-medium transition-all duration-300 ${
                       selectedCategory === category
-                        ? "bg-primary text-primary-foreground shadow-lg"
-                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-105"
+                        : "bg-card text-foreground hover:bg-card/80 border border-border"
                     }`}
                   >
-                    {category.charAt(0).toUpperCase() + category.slice(1)}
+                    {category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
                   </button>
                 ))}
               </div>
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3">Media Type</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-4 text-center">Filter by Type</h3>
               <div className="flex flex-wrap justify-center gap-3">
                 {mediaTypes.map((type) => (
                   <button
                     key={type}
                     onClick={() => setSelectedMediaType(type as "all" | "image" | "video")}
-                    className={`px-6 py-2 rounded-lg font-medium transition-all ${
+                    className={`px-6 py-2.5 rounded-full font-medium transition-all duration-300 ${
                       selectedMediaType === type
-                        ? "bg-primary text-primary-foreground shadow-lg"
-                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-105"
+                        : "bg-card text-foreground hover:bg-card/80 border border-border"
                     }`}
                   >
                     {type.charAt(0).toUpperCase() + type.slice(1)}{type !== "all" && "s"}
@@ -152,20 +160,23 @@ const Gallery = () => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredMedia.map((item, index) => (
                   <div
                     key={item.id}
-                    className="group relative overflow-hidden rounded-lg animate-fade-in cursor-pointer"
+                    className={`group relative overflow-hidden rounded-xl animate-fade-in border border-border hover:border-primary/30 transition-all duration-500 ${
+                      item.type === "image" ? "cursor-pointer hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1" : ""
+                    }`}
                     style={{ animationDelay: `${index * 50}ms` }}
                     onClick={() => item.type === "image" && handleImageClick(index)}
                   >
-                    <div className="aspect-square overflow-hidden bg-muted">
+                    <div className="aspect-square overflow-hidden bg-dark-card">
                       {item.type === "video" ? (
                         <video
                           src={item.url}
                           controls
                           className="w-full h-full object-cover"
+                          onClick={(e) => e.stopPropagation()}
                         />
                       ) : (
                         <img
@@ -174,10 +185,22 @@ const Gallery = () => {
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                         />
                       )}
+                      
+                      {/* Overlay for images only */}
+                      {item.type === "image" && (
+                        <div className="absolute inset-0 bg-gradient-to-t from-charcoal/95 via-charcoal/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
+                          {item.title && (
+                            <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
+                          )}
+                          <p className="text-sm text-primary">Click to view full size</p>
+                        </div>
+                      )}
                     </div>
-                    {item.title && (
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-                        <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
+                    
+                    {/* Video title badge */}
+                    {item.type === "video" && item.title && (
+                      <div className="absolute top-4 left-4 px-3 py-1.5 bg-primary/90 backdrop-blur-sm rounded-lg text-sm font-semibold text-primary-foreground">
+                        {item.title}
                       </div>
                     )}
                   </div>

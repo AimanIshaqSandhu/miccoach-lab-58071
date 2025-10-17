@@ -139,8 +139,13 @@ const Services = () => {
           ) : (
             <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8 max-w-7xl mx-auto">
               {services.map((service, index) => {
-                const primaryImage = service.acf.service_images?.[0];
-                const imageUrl = primaryImage?.url || primaryImage?.sizes?.large || primaryImage?.sizes?.full;
+                // Find first valid image from service_images (exclude videos)
+                const validImages = service.acf.service_images?.filter(img => {
+                  if (!img.url || typeof img.url !== 'string') return false;
+                  return !img.url.endsWith('.mp4') && !img.url.endsWith('.webm');
+                }) || [];
+                const primaryImage = validImages[0];
+                const imageUrl = primaryImage?.url || primaryImage?.sizes?.large || primaryImage?.sizes?.full || null;
 
                 return (
                   <Card 
