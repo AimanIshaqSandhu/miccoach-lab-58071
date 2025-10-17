@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, MapPin, Calendar, ArrowRight } from "lucide-react";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { VideoPlayer } from "@/components/VideoPlayer";
 import { wordpressAPI, WordPressProject } from "@/lib/wordpress-api";
 
 const ProjectDetail = () => {
@@ -222,17 +223,13 @@ const ProjectDetail = () => {
                     style={{ animationDelay: `${index * 100}ms` }}
                   >
                     <div className="relative aspect-video overflow-hidden">
-                      <video
-                        src={video.url}
-                        controls
+                      <VideoPlayer 
+                        src={video.url} 
                         className="w-full h-full"
+                        showBadge
+                        badgeText={video.title || "Project Video"}
                       />
                     </div>
-                    {video.title && (
-                      <CardContent className="p-4">
-                        <h3 className="font-semibold text-lg">{video.title}</h3>
-                      </CardContent>
-                    )}
                   </Card>
                 ))}
               </div>

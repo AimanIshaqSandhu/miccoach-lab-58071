@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, CheckCircle, Sparkles, Clock, Award, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { VideoPlayer } from "@/components/VideoPlayer";
 import { wordpressAPI, WordPressService } from "@/lib/wordpress-api";
 
 const ServiceDetail = () => {
@@ -73,13 +74,15 @@ const ServiceDetail = () => {
       <section className="relative min-h-[70vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">
           {media[0]?.type === 'video' ? (
-            <video 
-              src={media[0]?.url || ""} 
-              className="w-full h-full object-cover"
-              autoPlay
-              muted
-              loop
-            />
+            <>
+              <video 
+                src={media[0]?.url || ""} 
+                className="w-full h-full object-cover"
+                autoPlay
+                muted
+                loop
+              />
+            </>
           ) : (
             <img 
               src={media[0]?.url || ""} 
@@ -151,16 +154,12 @@ const ServiceDetail = () => {
                   >
                     <div className="relative aspect-video overflow-hidden">
                       {item.type === 'video' ? (
-                        <>
-                          <video 
-                            src={item.url} 
-                            controls
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute top-4 left-4 px-3 py-1.5 bg-primary/90 backdrop-blur-sm rounded-lg text-sm font-semibold text-primary-foreground">
-                            Video
-                          </div>
-                        </>
+                        <VideoPlayer 
+                          src={item.url} 
+                          className="w-full h-full"
+                          showBadge
+                          badgeText="Service Video"
+                        />
                       ) : (
                         <>
                           <img 

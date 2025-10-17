@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { ImageLightbox } from "@/components/ImageLightbox";
+import { VideoPlayer } from "@/components/VideoPlayer";
 import { wordpressAPI, WordPressGallery } from "@/lib/wordpress-api";
 
 interface GalleryMedia {
@@ -146,11 +147,11 @@ const Gallery = () => {
                   >
                     <div className="aspect-square overflow-hidden bg-dark-card">
                       {item.type === "video" ? (
-                        <video
-                          src={item.url}
-                          controls
-                          className="w-full h-full object-cover"
-                          onClick={(e) => e.stopPropagation()}
+                        <VideoPlayer 
+                          src={item.url} 
+                          className="w-full h-full"
+                          showBadge
+                          badgeText={item.title || "Video"}
                         />
                       ) : (
                         <img
@@ -170,13 +171,6 @@ const Gallery = () => {
                         </div>
                       )}
                     </div>
-                    
-                    {/* Video title badge */}
-                    {item.type === "video" && item.title && (
-                      <div className="absolute top-4 left-4 px-3 py-1.5 bg-primary/90 backdrop-blur-sm rounded-lg text-sm font-semibold text-primary-foreground">
-                        {item.title}
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
