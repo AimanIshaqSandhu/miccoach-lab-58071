@@ -9,7 +9,7 @@ const ServiceDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [service, setService] = useState<WordPressService | null>(null);
-  const [images, setImages] = useState<string[]>([]);
+  const [media, setMedia] = useState<Array<{ url: string; type: 'image' | 'video' }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,11 +23,21 @@ const ServiceDetail = () => {
       const data = await wordpressAPI.getServiceBySlug(slug);
       setService(data);
 
-      // Extract images
-      const imageUrls = data.acf.service_images
-        ?.map(img => img.url || img.sizes?.large || img.sizes?.full)
-        .filter(Boolean) as string[];
-      setImages(imageUrls || []);
+      // Extract media (images and videos)
+      const mediaItems = data.acf.service_images
+        ?.map(item => {
+          const url = item.url || item.sizes?.large || item.sizes?.full;
+          if (!url || typeof url !== 'string') return null;
+          
+          const isVideo = url.endsWith('.mp4') || url.endsWith('.webm') || url.endsWith('.mov');
+          return {
+            url,
+            type: isVideo ? 'video' as const : 'image' as const
+          };
+        })
+        .filter((item): item is { url: string; type: 'image' | 'video' } => item !== null) || [];
+      
+      setMedia(mediaItems);
     } catch (error) {
       console.error("Error fetching service:", error);
     } finally {
@@ -62,11 +72,21 @@ const ServiceDetail = () => {
       {/* Hero Section */}
       <section className="relative min-h-[70vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">
-          <img 
-            src={images[0] || ""} 
-            alt={service.title}
-            className="w-full h-full object-cover"
-          />
+          {media[0]?.type === 'video' ? (
+            <video 
+              src={media[0]?.url || ""} 
+              className="w-full h-full object-cover"
+              autoPlay
+              muted
+              loop
+            />
+          ) : (
+            <img 
+              src={media[0]?.url || ""} 
+              alt={service.title}
+              className="w-full h-full object-cover"
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-r from-dark via-dark/95 to-dark/70" />
         </div>
         
@@ -109,7 +129,7 @@ const ServiceDetail = () => {
       </section>
 
       {/* Gallery Section */}
-      {images.length > 0 && (
+      {media.length > 0 && (
         <section className="py-20 bg-dark-card">
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
@@ -123,19 +143,34 @@ const ServiceDetail = () => {
               </div>
 
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {images.map((image: string, index: number) => (
+                {media.map((item, index: number) => (
                   <Card
                     key={index}
                     className="group overflow-hidden border-border bg-gradient-to-br from-card to-dark-card hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 animate-scale-in"
                     style={{ animationDelay: `${index * 100}ms` }}
                   >
                     <div className="relative aspect-video overflow-hidden">
-                      <img 
-                        src={image} 
-                        alt={`Gallery ${index + 1}`}
-                        className="w-full h-full object-cover group-hover:scale-110 group-hover:rotate-1 transition-all duration-700"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-dark/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      {item.type === 'video' ? (
+                        <>
+                          <video 
+                            src={item.url} 
+                            controls
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute top-4 left-4 px-3 py-1.5 bg-primary/90 backdrop-blur-sm rounded-lg text-sm font-semibold text-primary-foreground">
+                            Video
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <img 
+                            src={item.url} 
+                            alt={`Gallery ${index + 1}`}
+                            className="w-full h-full object-cover group-hover:scale-110 group-hover:rotate-1 transition-all duration-700"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-dark/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        </>
+                      )}
                     </div>
                   </Card>
                 ))}

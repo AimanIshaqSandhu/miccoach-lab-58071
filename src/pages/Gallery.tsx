@@ -15,7 +15,6 @@ const Gallery = () => {
   const [media, setMedia] = useState<GalleryMedia[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [selectedMediaType, setSelectedMediaType] = useState<"all" | "image" | "video">("all");
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
@@ -53,12 +52,9 @@ const Gallery = () => {
   };
 
   const categories = ["all", ...Array.from(new Set(media.map(m => m.category)))];
-  const mediaTypes = ["all", "image", "video"];
   
   const filteredMedia = media.filter(item => {
-    const categoryMatch = selectedCategory === "all" || item.category === selectedCategory;
-    const mediaMatch = selectedMediaType === "all" || item.type === selectedMediaType;
-    return categoryMatch && mediaMatch;
+    return selectedCategory === "all" || item.category === selectedCategory;
   });
 
   const imageUrls = filteredMedia
@@ -107,46 +103,24 @@ const Gallery = () => {
         </div>
       </section>
 
-      {/* Category and Media Type Filters */}
+      {/* Category Filter */}
       <section className="py-12 bg-dark-card border-y border-border">
         <div className="container mx-auto px-4">
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-sm font-semibold text-foreground mb-4 text-center">Filter by Category</h3>
-              <div className="flex flex-wrap justify-center gap-3">
-                {categories.map((category) => (
-                  <button
-                    key={category}
-                    onClick={() => setSelectedCategory(category)}
-                    className={`px-6 py-2.5 rounded-full font-medium transition-all duration-300 ${
-                      selectedCategory === category
-                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-105"
-                        : "bg-card text-foreground hover:bg-card/80 border border-border"
-                    }`}
-                  >
-                    {category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-foreground mb-4 text-center">Filter by Type</h3>
-              <div className="flex flex-wrap justify-center gap-3">
-                {mediaTypes.map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => setSelectedMediaType(type as "all" | "image" | "video")}
-                    className={`px-6 py-2.5 rounded-full font-medium transition-all duration-300 ${
-                      selectedMediaType === type
-                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-105"
-                        : "bg-card text-foreground hover:bg-card/80 border border-border"
-                    }`}
-                  >
-                    {type.charAt(0).toUpperCase() + type.slice(1)}{type !== "all" && "s"}
-                  </button>
-                ))}
-              </div>
-            </div>
+          <h3 className="text-sm font-semibold text-foreground mb-4 text-center">Filter by Category</h3>
+          <div className="flex flex-wrap justify-center gap-3">
+            {categories.map((category) => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`px-6 py-2.5 rounded-full font-medium transition-all duration-300 ${
+                  selectedCategory === category
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-105"
+                    : "bg-card text-foreground hover:bg-card/80 border border-border"
+                }`}
+              >
+                {category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
+              </button>
+            ))}
           </div>
         </div>
       </section>
