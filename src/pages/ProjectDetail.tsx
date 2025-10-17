@@ -1,40 +1,17 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, MapPin, Calendar, ArrowRight } from "lucide-react";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-
-type Project = {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  location: string | null;
-  year_completed: number | null;
-};
-
-type ProjectImage = {
-  id: string;
-  image_url: string;
-  is_primary: boolean;
-  display_order: number;
-};
-
-type ProjectVideo = {
-  id: string;
-  video_url: string;
-  title: string | null;
-  display_order: number;
-};
+import { wordpressAPI, WordPressProject } from "@/lib/wordpress-api";
 
 const ProjectDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [project, setProject] = useState<Project | null>(null);
+  const [project, setProject] = useState<WordPressProject | null>(null);
   const [images, setImages] = useState<string[]>([]);
-  const [videos, setVideos] = useState<ProjectVideo[]>([]);
+  const [videos, setVideos] = useState<{ id: number; title: string; url: string }[]>([]);
   const [activeTab, setActiveTab] = useState<"images" | "videos">("images");
   const [loading, setLoading] = useState(true);
 
@@ -45,50 +22,30 @@ const ProjectDetail = () => {
   const fetchProjectDetails = async () => {
     if (!id) return;
 
-    // Fetch project details
-    const { data: projectData, error: projectError } = await supabase
-      .from("projects")
-      .select("*")
-      .eq("id", id)
-      .single();
+    try {
+      const data = await wordpressAPI.getProjectById(id);
+      setProject(data);
 
-    if (projectError) {
-      console.error("Error fetching project:", projectError);
+      // Extract images
+      const imageUrls = data.acf.project_images
+        ?.map(img => img.url || img.sizes?.large || img.sizes?.full)
+        .filter(Boolean) as string[];
+      setImages(imageUrls || []);
+
+      // Extract videos
+      const videoData = data.acf.project_videos
+        ?.map(video => ({
+          id: video.id,
+          title: video.title,
+          url: video.url || video.sizes?.full
+        }))
+        .filter(v => v.url) || [];
+      setVideos(videoData);
+    } catch (error) {
+      console.error("Error fetching project:", error);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setProject(projectData);
-
-    // Fetch all images for this project
-    const { data: imagesData, error: imagesError } = await supabase
-      .from("project_images")
-      .select("*")
-      .eq("project_id", id)
-      .order("display_order", { ascending: true });
-
-    if (!imagesError && imagesData) {
-      const imageUrls = imagesData.map((img) => {
-        const { data } = supabase.storage
-          .from("project-images")
-          .getPublicUrl(img.image_url);
-        return data.publicUrl;
-      });
-      setImages(imageUrls);
-    }
-
-    // Fetch all videos for this project
-    const { data: videosData, error: videosError } = await supabase
-      .from("project_videos")
-      .select("*")
-      .eq("project_id", id)
-      .order("display_order", { ascending: true });
-
-    if (!videosError && videosData) {
-      setVideos(videosData);
-    }
-
-    setLoading(false);
   };
 
   if (loading) {
@@ -148,27 +105,27 @@ const ProjectDetail = () => {
           
           <div className="max-w-4xl animate-fade-in">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full mb-6 backdrop-blur-sm">
-              <span className="text-primary text-sm font-medium">{project.category}</span>
+              <span className="text-primary text-sm font-medium">{project.acf.category}</span>
             </div>
             <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">{project.title}</h1>
             
             <div className="flex flex-wrap gap-6 text-muted-foreground mb-6">
-              {project.location && (
+              {project.acf.location && (
                 <div className="flex items-center gap-2 px-4 py-2 bg-dark/50 rounded-full backdrop-blur-sm">
                   <MapPin className="h-5 w-5 text-primary" />
-                  <span>{project.location}</span>
+                  <span>{project.acf.location}</span>
                 </div>
               )}
-              {project.year_completed && (
+              {project.acf.year_completed && (
                 <div className="flex items-center gap-2 px-4 py-2 bg-dark/50 rounded-full backdrop-blur-sm">
                   <Calendar className="h-5 w-5 text-primary" />
-                  <span>{project.year_completed}</span>
+                  <span>{project.acf.year_completed}</span>
                 </div>
               )}
             </div>
             
             <p className="text-xl text-muted-foreground leading-relaxed">
-              {project.description}
+              {project.acf.description}
             </p>
           </div>
         </div>
@@ -266,7 +223,7 @@ const ProjectDetail = () => {
                   >
                     <div className="relative aspect-video overflow-hidden">
                       <video
-                        src={video.video_url}
+                        src={video.url}
                         controls
                         className="w-full h-full"
                       />
@@ -295,26 +252,26 @@ const ProjectDetail = () => {
             <div className="grid md:grid-cols-2 gap-8">
               <Card className="group p-6 border-border bg-gradient-to-br from-card to-dark-card hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1">
                 <h3 className="text-xl font-bold mb-4 text-primary group-hover:scale-105 transition-transform">Category</h3>
-                <p className="text-muted-foreground text-lg">{project.category}</p>
+                <p className="text-muted-foreground text-lg">{project.acf.category}</p>
               </Card>
               
-              {project.location && (
+              {project.acf.location && (
                 <Card className="group p-6 border-border bg-gradient-to-br from-card to-dark-card hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1">
                   <h3 className="text-xl font-bold mb-4 text-primary group-hover:scale-105 transition-transform">Location</h3>
-                  <p className="text-muted-foreground text-lg">{project.location}</p>
+                  <p className="text-muted-foreground text-lg">{project.acf.location}</p>
                 </Card>
               )}
               
-              {project.year_completed && (
+              {project.acf.year_completed && (
                 <Card className="group p-6 border-border bg-gradient-to-br from-card to-dark-card hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1">
                   <h3 className="text-xl font-bold mb-4 text-primary group-hover:scale-105 transition-transform">Completed</h3>
-                  <p className="text-muted-foreground text-lg">{project.year_completed}</p>
+                  <p className="text-muted-foreground text-lg">{project.acf.year_completed}</p>
                 </Card>
               )}
               
               <Card className="group p-6 border-border bg-gradient-to-br from-card to-dark-card hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1 md:col-span-2">
                 <h3 className="text-xl font-bold mb-4 text-primary group-hover:scale-105 transition-transform">Description</h3>
-                <p className="text-muted-foreground leading-relaxed">{project.description}</p>
+                <p className="text-muted-foreground leading-relaxed">{project.acf.description}</p>
               </Card>
             </div>
           </div>

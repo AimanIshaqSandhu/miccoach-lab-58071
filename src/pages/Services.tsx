@@ -3,24 +3,10 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Star, CheckCircle, Shield, Clock, Users, Award, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
-import livingRoomImage from "@/assets/living-room-ceiling.jpg";
-
-type Service = {
-  id: string;
-  title: string;
-  slug: string;
-  description: string;
-  short_description: string | null;
-  features: any;
-  icon: string | null;
-  display_order: number;
-  is_active: boolean;
-};
+import { wordpressAPI, WordPressService } from "@/lib/wordpress-api";
 
 const Services = () => {
-  const [services, setServices] = useState<Service[]>([]);
-  const [serviceImages, setServiceImages] = useState<Record<string, string>>({});
+  const [services, setServices] = useState<WordPressService[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,37 +14,14 @@ const Services = () => {
   }, []);
 
   const fetchServices = async () => {
-    const { data: servicesData, error: servicesError } = await supabase
-      .from("services")
-      .select("*")
-      .eq("is_active", true)
-      .order("display_order", { ascending: true });
-
-    if (servicesError) {
-      console.error("Error fetching services:", servicesError);
+    try {
+      const data = await wordpressAPI.getServices();
+      setServices(data);
+    } catch (error) {
+      console.error("Error fetching services:", error);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setServices(servicesData || []);
-
-    const { data: imagesData, error: imagesError } = await supabase
-      .from("service_images")
-      .select("*")
-      .eq("is_primary", true);
-
-    if (!imagesError && imagesData) {
-      const imageMap: Record<string, string> = {};
-      for (const img of imagesData) {
-        const { data } = supabase.storage
-          .from("service-images")
-          .getPublicUrl(img.image_url);
-        imageMap[img.service_id] = data.publicUrl;
-      }
-      setServiceImages(imageMap);
-    }
-
-    setLoading(false);
   };
 
   if (loading) {
@@ -176,9 +139,8 @@ const Services = () => {
           ) : (
             <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8 max-w-7xl mx-auto">
               {services.map((service, index) => {
-                const features = Array.isArray(service.features) 
-                  ? service.features 
-                  : service.features?.features || [];
+                const primaryImage = service.acf.service_images?.[0];
+                const imageUrl = primaryImage?.url || primaryImage?.sizes?.large || primaryImage?.sizes?.full;
 
                 return (
                   <Card 
@@ -195,11 +157,17 @@ const Services = () => {
                     </div>
 
                     <div className="relative h-80 overflow-hidden rounded-t-lg">
-                      <img 
-                        src={serviceImages[service.id] || livingRoomImage} 
-                        alt={service.title}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
-                      />
+                      {imageUrl ? (
+                        <img 
+                          src={imageUrl} 
+                          alt={service.title}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                          <p className="text-muted-foreground">No image</p>
+                        </div>
+                      )}
                       <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/60 to-transparent opacity-90 group-hover:opacity-95 transition-opacity duration-300" />
                       
                       {/* Premium Badge */}
@@ -220,25 +188,9 @@ const Services = () => {
                     
                     <CardContent className="p-8 relative">
                       <p className="text-muted-foreground mb-6 leading-relaxed text-lg">
-                        {service.short_description || service.description}
+                        {service.acf.short_description || service.acf.full_description}
                       </p>
                       
-                      {features.length > 0 && (
-                        <div className="mb-8">
-                          <h4 className="text-sm font-semibold text-primary mb-4 uppercase tracking-wide">Key Features</h4>
-                          <div className="grid grid-cols-2 gap-3">
-                            {features.slice(0, 4).map((feature: string, i: number) => (
-                              <div key={i} className="flex items-center space-x-2">
-                                <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0"></div>
-                                <span className="text-sm text-muted-foreground">
-                                  {feature}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
                       <div className="flex items-center justify-between">
                         <Link 
                           to={`/services/${service.slug}`}
@@ -248,10 +200,11 @@ const Services = () => {
                           <ArrowRight className="ml-3 h-5 w-5 group-hover/link:translate-x-2 transition-transform duration-300" />
                         </Link>
                         
-                        {/* Quick Action Button */}
-                        <Button variant="ghost" size="sm" className="rounded-full border border-border hover:border-primary/30 hover:bg-primary/10 transition-all duration-300">
-                          Quick Quote
-                        </Button>
+                        {service.acf.prices && (
+                          <span className="text-sm font-semibold text-muted-foreground">
+                            From PKR {service.acf.prices}
+                          </span>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

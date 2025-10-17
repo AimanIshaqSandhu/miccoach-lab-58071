@@ -1,25 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
-import livingRoomImage from "@/assets/living-room-ceiling.jpg";
-
-type Project = {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  location: string | null;
-  year_completed: number | null;
-};
+import { wordpressAPI, WordPressProject } from "@/lib/wordpress-api";
 
 const Projects = () => {
   const navigate = useNavigate();
   const [filter, setFilter] = useState("all");
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [projectImages, setProjectImages] = useState<Record<string, string>>({});
+  const [projects, setProjects] = useState<WordPressProject[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,41 +16,19 @@ const Projects = () => {
   }, []);
 
   const fetchProjects = async () => {
-    const { data: projectsData, error: projectsError } = await supabase
-      .from("projects")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (projectsError) {
-      console.error("Error fetching projects:", projectsError);
+    try {
+      const data = await wordpressAPI.getProjects();
+      setProjects(data);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setProjects(projectsData || []);
-
-    const { data: imagesData, error: imagesError } = await supabase
-      .from("project_images")
-      .select("*")
-      .eq("is_primary", true);
-
-    if (!imagesError && imagesData) {
-      const imageMap: Record<string, string> = {};
-      for (const img of imagesData) {
-        const { data } = supabase.storage
-          .from("project-images")
-          .getPublicUrl(img.image_url);
-        imageMap[img.project_id] = data.publicUrl;
-      }
-      setProjectImages(imageMap);
-    }
-
-    setLoading(false);
   };
 
   const filteredProjects = filter === "all" 
     ? projects 
-    : projects.filter(p => p.category.toLowerCase() === filter);
+    : projects.filter(p => p.acf.category.toLowerCase() === filter);
 
   const filters = [
     { id: "all", label: "All Projects" },
@@ -123,53 +90,62 @@ const Projects = () => {
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredProjects.map((project, index) => (
-                <Card 
-                  key={project.id}
-                  className="group relative overflow-hidden border-border bg-gradient-to-br from-card to-dark-card hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 animate-scale-in cursor-pointer hover:-translate-y-2"
-                  style={{ animationDelay: `${index * 100}ms` }}
-                  onClick={() => navigate(`/projects/${project.id}`)}
-                >
-                  {/* Premium overlay effect */}
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-10">
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5" />
-                  </div>
-
-                  <div className="relative h-80 overflow-hidden">
-                    <img 
-                      src={projectImages[project.id] || livingRoomImage} 
-                      alt={project.title}
-                      className="w-full h-full object-cover group-hover:scale-110 group-hover:rotate-1 transition-all duration-700"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-dark via-dark/40 to-transparent opacity-70 group-hover:opacity-95 transition-opacity duration-300" />
-                    
-                    {/* Category badge */}
-                    <div className="absolute top-4 left-4 px-3 py-1.5 bg-primary/90 backdrop-blur-sm rounded-full text-xs font-bold text-primary-foreground transform -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-300">
-                      {project.category}
+              {filteredProjects.map((project, index) => {
+                const primaryImage = project.acf.project_images?.find(() => true);
+                const imageUrl = primaryImage?.url || primaryImage?.sizes?.large || primaryImage?.sizes?.full;
+                
+                return (
+                  <Card 
+                    key={project.id}
+                    className="group relative overflow-hidden border-border bg-gradient-to-br from-card to-dark-card hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 animate-scale-in cursor-pointer hover:-translate-y-2"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                    onClick={() => navigate(`/projects/${project.id}`)}
+                  >
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-10">
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5" />
                     </div>
 
-                    <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
-                      <h3 className="text-2xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors">{project.title}</h3>
-                      {project.location && (
-                        <p className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
-                          <span className="w-1 h-1 rounded-full bg-primary"></span>
-                          {project.location}
+                    <div className="relative h-80 overflow-hidden">
+                      {imageUrl ? (
+                        <img 
+                          src={imageUrl} 
+                          alt={project.title}
+                          className="w-full h-full object-cover group-hover:scale-110 group-hover:rotate-1 transition-all duration-700"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                          <p className="text-muted-foreground">No image</p>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-dark via-dark/40 to-transparent opacity-70 group-hover:opacity-95 transition-opacity duration-300" />
+                      
+                      <div className="absolute top-4 left-4 px-3 py-1.5 bg-primary/90 backdrop-blur-sm rounded-full text-xs font-bold text-primary-foreground transform -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-300">
+                        {project.acf.category}
+                      </div>
+
+                      <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+                        <h3 className="text-2xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors">{project.title}</h3>
+                        {project.acf.location && (
+                          <p className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-primary"></span>
+                            {project.acf.location}
+                          </p>
+                        )}
+                        {project.acf.year_completed && (
+                          <p className="text-sm text-muted-foreground mb-2">{project.acf.year_completed}</p>
+                        )}
+                        <p className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-all duration-300 delay-75 line-clamp-2 leading-relaxed">
+                          {project.acf.description}
                         </p>
-                      )}
-                      {project.year_completed && (
-                        <p className="text-sm text-muted-foreground mb-2">{project.year_completed}</p>
-                      )}
-                      <p className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-all duration-300 delay-75 line-clamp-2 leading-relaxed">
-                        {project.description}
-                      </p>
-                      <div className="mt-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 delay-100">
-                        <span className="text-primary text-sm font-semibold">View Project</span>
-                        <ArrowRight className="text-primary h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                        <div className="mt-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 delay-100">
+                          <span className="text-primary text-sm font-semibold">View Project</span>
+                          <ArrowRight className="text-primary h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>

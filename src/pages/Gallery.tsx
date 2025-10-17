@@ -1,20 +1,18 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { ImageLightbox } from "@/components/ImageLightbox";
+import { wordpressAPI, WordPressGallery } from "@/lib/wordpress-api";
 
-interface GalleryImage {
-  id: string;
-  image_url: string | null;
-  video_url: string | null;
-  title: string | null;
-  description: string | null;
+interface GalleryMedia {
+  id: number;
+  title: string;
+  url: string;
+  type: "image" | "video";
   category: string;
-  media_type: string;
 }
 
 const Gallery = () => {
-  const [images, setImages] = useState<GalleryImage[]>([]);
+  const [media, setMedia] = useState<GalleryMedia[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedMediaType, setSelectedMediaType] = useState<"all" | "image" | "video">("all");
@@ -22,47 +20,59 @@ const Gallery = () => {
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
   useEffect(() => {
-    fetchGalleryImages();
+    fetchGalleryMedia();
   }, []);
 
-  const fetchGalleryImages = async () => {
+  const fetchGalleryMedia = async () => {
     try {
-      const { data, error } = await supabase
-        .from("gallery")
-        .select("*")
-        .eq("is_active", true)
-        .order("display_order", { ascending: true });
+      const galleries = await wordpressAPI.getGalleries();
+      const allMedia: GalleryMedia[] = [];
 
-      if (error) throw error;
-      setImages(data || []);
+      galleries.forEach((gallery) => {
+        const category = gallery.slug;
+        
+        // Process team_working items
+        gallery.acf.team_working?.forEach((item) => {
+          const isVideo = item.url.endsWith('.mp4') || item.url.endsWith('.webm');
+          allMedia.push({
+            id: item.id,
+            title: item.title || gallery.title,
+            url: item.url,
+            type: isVideo ? "video" : "image",
+            category: category,
+          });
+        });
+      });
+
+      setMedia(allMedia);
     } catch (error) {
-      console.error("Error fetching gallery images:", error);
+      console.error("Error fetching gallery:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const categories = ["all", "team", "projects", "workshop"];
+  const categories = ["all", ...Array.from(new Set(media.map(m => m.category)))];
   const mediaTypes = ["all", "image", "video"];
   
-  const filteredImages = images.filter(img => {
-    const categoryMatch = selectedCategory === "all" || img.category === selectedCategory;
-    const mediaMatch = selectedMediaType === "all" || img.media_type === selectedMediaType;
+  const filteredMedia = media.filter(item => {
+    const categoryMatch = selectedCategory === "all" || item.category === selectedCategory;
+    const mediaMatch = selectedMediaType === "all" || item.type === selectedMediaType;
     return categoryMatch && mediaMatch;
   });
 
-  const imageUrls = filteredImages
-    .filter(img => img.media_type === "image" && img.image_url)
-    .map(img => ({
-      id: img.id,
-      image_url: img.image_url!,
-      title: img.title
+  const imageUrls = filteredMedia
+    .filter(item => item.type === "image")
+    .map(item => ({
+      id: String(item.id),
+      image_url: item.url,
+      title: item.title
     }));
 
   const handleImageClick = (index: number) => {
-    const filteredIndex = filteredImages
+    const filteredIndex = filteredMedia
       .slice(0, index + 1)
-      .filter(img => img.media_type === "image").length - 1;
+      .filter(item => item.type === "image").length - 1;
     setLightboxIndex(filteredIndex);
     setLightboxOpen(true);
   };
@@ -136,48 +146,42 @@ const Gallery = () => {
       {/* Gallery Grid */}
       <section className="py-20">
         <div className="container mx-auto px-4">
-          {filteredImages.length === 0 ? (
+          {filteredMedia.length === 0 ? (
             <div className="text-center py-20">
-              <p className="text-muted-foreground text-xl">No images found in this category.</p>
+              <p className="text-muted-foreground text-xl">No media found in this category.</p>
             </div>
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredImages.map((item, index) => (
-                <div
-                  key={item.id}
-                  className="group relative overflow-hidden rounded-lg animate-fade-in cursor-pointer"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                  onClick={() => item.media_type === "image" && handleImageClick(index)}
-                >
-                  <div className="aspect-square overflow-hidden bg-muted">
-                    {item.media_type === "video" && item.video_url ? (
-                      <iframe
-                        src={item.video_url}
-                        className="w-full h-full"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    ) : (
-                      <img
-                        src={item.image_url || ""}
-                        alt={item.title || "Gallery item"}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                      />
-                    )}
-                  </div>
-                  {(item.title || item.description) && (
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-                      {item.title && (
-                        <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
-                      )}
-                      {item.description && (
-                        <p className="text-gray-300 text-sm">{item.description}</p>
+                {filteredMedia.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className="group relative overflow-hidden rounded-lg animate-fade-in cursor-pointer"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                    onClick={() => item.type === "image" && handleImageClick(index)}
+                  >
+                    <div className="aspect-square overflow-hidden bg-muted">
+                      {item.type === "video" ? (
+                        <video
+                          src={item.url}
+                          controls
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <img
+                          src={item.url}
+                          alt={item.title}
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        />
                       )}
                     </div>
-                  )}
-                </div>
-              ))}
+                    {item.title && (
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
+                        <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
               
               {lightboxOpen && (
