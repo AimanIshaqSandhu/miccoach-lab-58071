@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { FeaturedProjects } from "@/components/FeaturedProjects";
 import { Testimonials } from "@/components/Testimonials";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { supabase } from "@/integrations/supabase/client";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import Autoplay from "embla-carousel-autoplay";
+import { wordpressAPI, WordPressGallery } from "@/lib/wordpress-api";
 import type { CarouselApi } from "@/components/ui/carousel";
 import livingRoomImage from "@/assets/living-room-ceiling.jpg";
 import bedroomImage from "@/assets/bedroom-ceiling.jpg";
@@ -43,16 +43,25 @@ const Home = () => {
 
   const fetchTeamImages = async () => {
     try {
-      const { data, error } = await supabase
-        .from("gallery")
-        .select("id, image_url, title")
-        .eq("is_active", true)
-        .eq("category", "team")
-        .order("display_order", { ascending: true })
-        .limit(10);
-
-      if (error) throw error;
-      setTeamImages(data || []);
+      const galleries = await wordpressAPI.getGalleries();
+      
+      // Find team working gallery
+      const teamGallery = galleries.find(g => 
+        g.slug.includes("team") || g.title.toLowerCase().includes("team")
+      );
+      
+      if (teamGallery && teamGallery.acf.team_working) {
+        const images = teamGallery.acf.team_working
+          .slice(0, 10)
+          .map((item, index) => ({
+            id: String(item.id || index),
+            image_url: item.url || item.sizes?.large || item.sizes?.full || "",
+            title: item.title || null,
+          }))
+          .filter(img => img.image_url);
+        
+        setTeamImages(images);
+      }
     } catch (error) {
       console.error("Error fetching team images:", error);
     }

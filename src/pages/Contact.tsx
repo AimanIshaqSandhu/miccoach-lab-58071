@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
 const contactSchema = z.object({
@@ -35,11 +34,21 @@ const Contact = () => {
       setLoading(true);
 
       // Send email via edge function
-      const { error } = await supabase.functions.invoke("send-contact-email", {
-        body: validatedData,
-      });
+      const response = await fetch(
+        "https://hgxqhqypsxfciyojygtd.supabase.co/functions/v1/send-contact-email",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(validatedData),
+        }
+      );
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to send message");
+      }
 
       toast({
         title: "Message sent successfully!",
